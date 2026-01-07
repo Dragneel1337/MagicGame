@@ -1,5 +1,9 @@
-import { ComponentExample } from "@/components/component-example";
+import MagicGame from './components/MagicGame';
 
 export default function Page() {
-return <ComponentExample />;
+	return (
+		<main className="flex min-h-screen flex-col items-center justify-center p-4">
+			<MagicGame />
+		</main>
+	);
 }
