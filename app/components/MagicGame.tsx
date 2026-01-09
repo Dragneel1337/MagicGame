@@ -1,78 +1,41 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Button } from './ui/button';
 import { GameOverPopup } from './GameOverPopup';
+import { shuffleMagicCards } from '@/lib/cards';
 
-const magicCards = ['dwarf', 'archer', 'mage', 'knight', 'berserker', 'healer', 'thief', 'assassin'];
-
-let timer = '00:00';
-let seconds = 0;
-let minutes = 0;
-let counter = 0;
-
-const magicCardsAll = [
-	'dwarf',
-	'archer',
-	'mage',
-	'knight',
-	'berserker',
-	'healer',
-	'thief',
-	'assassin',
-	'tank',
-	'samurai',
-	'warlord',
-	'paladin',
-	'pirate',
-	'water mage',
-	'bard',
-	'alchemist',
-	'gunslinger',
-	'shadow',
-];
-
-const shuffledMagicCards = [...magicCards, ...magicCards]
-	.map(card => ({ card, sort: Math.random() }))
-	.sort((a, b) => a.sort - b.sort)
-	.map(({ card }) => card);
-
-export default function MagicGame() {
+export default function MagicGame({ shuffledMagicCards }: { shuffledMagicCards: string[] }) {
 	const [cards, setCards] = useState<string[]>(shuffledMagicCards);
 	const [flipped, setFlipped] = useState<number[]>([]);
 	const [matched, setMatched] = useState<number[]>([]);
+	const [count, setCount] = useState(0);
+	const [secondsElapsed, setSecondsElapsed] = useState<number>(0);
 
 	const gameOver = matched.length === cards.length;
+	const minutes = Math.floor(secondsElapsed / 60);
+	const seconds = secondsElapsed % 60;
+
+	const timerRef = useRef<NodeJS.Timeout | null>(null);
 
 	const handleFlip = (index: number) => {
 		if (!flipped.includes(index) && flipped.length < 2) {
 			setFlipped([...flipped, index]);
-			counter++;
+			setCount(prevCount => prevCount + 1);
 		}
 	};
 
 	const handleReset = () => {
-		setCards(shuffledMagicCards);
+		setCards(shuffleMagicCards());
 		setFlipped([]);
 		setMatched([]);
-		counter = 0;
-		minutes = 0;
-		seconds = 0;
-		timer = '00:00';
-	};
-
-	const handleTimer = () => {
-		setInterval(() => {
-			seconds++;
-			if (seconds === 60) {
-				minutes++;
-				seconds = 0;
-			}
-			const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
-			const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-			timer = `${formattedMinutes}:${formattedSeconds}`;
-		}, 1000);
+		setCount(0);
+		setSecondsElapsed(0);
+		if (timerRef.current) {
+			clearInterval(timerRef.current);
+			timerRef.current = null;
+		}
 	};
 
 	useEffect(() => {
@@ -86,9 +49,23 @@ export default function MagicGame() {
 		if (flipped.length === 2) {
 			setTimeout(() => {
 				checkMatch();
-			}, 1000);
+			}, 800);
 		}
 	}, [cards, flipped, matched]);
+
+	useEffect(() => {
+		if (count === 1 && timerRef.current === null) {
+			timerRef.current = setInterval(() => {
+				setSecondsElapsed(prev => prev + 1);
+			}, 1000);
+		}
+	}, [count]);
+
+	useEffect(() => {
+		if (gameOver && timerRef.current) {
+			clearInterval(timerRef.current);
+		}
+	}, [gameOver]);
 
 	return (
 		<div>
@@ -96,11 +73,13 @@ export default function MagicGame() {
 				<div className="w-full flex justify-around bg-accent rounded-lg shadow-lg px-6 py-4 text-center">
 					<div>
 						<h3 className="text-sm font-semibold uppercase tracking-wider opacity-90">Moves</h3>
-						<p className="text-3xl font-bold mt-1">{counter}</p>
+						<p className="text-3xl font-bold mt-1">{count}</p>
 					</div>
 					<div>
 						<h3 className="text-sm font-semibold uppercase tracking-wider opacity-90">Time: </h3>
-						<p className="text-3xl font-bold mt-1">{timer}</p>
+						<p className="text-3xl font-bold mt-1">
+							{minutes}:{seconds.toString().padStart(2, '0')}
+						</p>
 					</div>
 				</div>
 			</div>
@@ -124,11 +103,11 @@ export default function MagicGame() {
 				))}
 			</div>
 			<div className="mt-6 flex justify-center">
-				<Button variant="destructive" className="mt-1 text-xl p-6" onClick={handleReset}>
+				<Button variant="destructive" className="mt-1 text-xl p-6 cursor-pointer" onClick={handleReset}>
 					Reset Game
 				</Button>
 			</div>
-			{gameOver && <GameOverPopup open={gameOver} counter={counter} handleReset={handleReset} />}
+			{gameOver && <GameOverPopup open={gameOver} counter={count} handleReset={handleReset} />}
 		</div>
 	);
 }
